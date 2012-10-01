@@ -6,10 +6,27 @@ from mpl_toolkits.mplot3d import Axes3D
 #ode_file = 'lorenz96v2.ode'; color='r'
 
 # Lorenz 84
-ode_file = 'lorenz84.ode'; color='r'
+ode_file = 'henon.ode'
+
+set_file = 'henon.set'
+
+# Create temporary (copies) of ode and set file.
+# For security reasons it is better to work on copies instead of original files.
+xppy.createTmp(ode_file, set_file)
+
+
+# List with papameters to change, you can use constants or variables
+pars = [['par', 'a', 1.25],
+        ['par', 'b',  .3]]
+
+
+print pars 
+# Change parameters in the temporary set file
+# (you can change specific file by giving it's name as the argument)
+xppy.changeSet( pars )
 
 # init the xppy object
-xppy.createTmp( ode_file )
+#xppy.createTmp( ode_file )
 
 # run it
 out = xppy.run( )# ode_file )
@@ -20,9 +37,10 @@ pars = xppy.parse.readOdePars(ode_file, False, True, False)
 ts = list( out[0] )
 xs = list( out[1] )
 ys = list( out[2] )
-zs = list( out[3] )
 
-# for i in range(20):
+print "len", len(xs)
+
+# for i in range(2):
 #     print "OUT"
 #     print out.getRawData()
 #     print "    ", out[0]
@@ -34,25 +52,23 @@ zs = list( out[3] )
 #     # from the latest IC. Account for this below
 #     #0:time, 1:u[1], ..., 21:u[21]
 
-#     print ts
-#     print xs
-    
-#     ts.extend( 20*(i+1)+out[0] )
-#     xs.extend( out[1] )
-#     ys.extend( out[2] )
-#     zs.extend( out[3] )
+#     # ts.extend( 20*(i+1)+out[0] )
+#     # xs.extend( out[1] )
+#     # ys.extend( out[2] )
 
-# first, 3d
-fig = plt.figure( 1 )
-ax = fig.gca(projection='3d')
-ax.plot( xs, ys, zs, color=color )#, lw=3, alpha=0.8)
+    
+
+# first
+fig = plt.figure(1)
+ax = fig.gca()
+
+ax.plot( xs, ys, 'bo', ms=4 )
 ax.set_xlabel("X")
 ax.set_ylabel("Y")
-ax.set_zlabel("Z")
 
 # individual 2D plots
-if 1:
-    fig2 = plt.figure( 2, figsize=(8,12) )
+if 0:
+    fig2 = plt.figure(2,figsize=(8,12))
     ax1 = fig2.add_subplot( 311 )
     ax1.plot( ts, xs, color=color, linestyle='-', lw=2, label='x' )
     ax2 = fig2.add_subplot( 312 )
@@ -74,7 +90,6 @@ if 1:
 # ax4.plot( ys, zs, 'g-', lw=2, label='y vs z' )
 # ax4.legend()
 
-fig.show()
-fig2.show()
 
-xppy.cleanUp()
+fig.show()
+#fig2.show()

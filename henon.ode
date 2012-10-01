@@ -1,0 +1,10 @@
+# delayed logistic map
+x'=y + 1 - a*x*x
+y'=b*x
+par a=1.4,b=.3
+init x=.2,y=.2
+# set method to discrete
+@ meth=discrete
+@ total=1000
+@ transient=500
+done
