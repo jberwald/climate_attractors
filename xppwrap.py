@@ -8,6 +8,7 @@ import sys
 import timer
 import argparse
 import matplotlib.pyplot as plt
+import numpy as np
 from mpl_toolkits.mplot3d import Axes3D
 try:
     import xppy
@@ -18,9 +19,13 @@ except ImportError:
 
 class XPPWrap( object ):
     """
-    Call XPP for a single instance of an ODE. Multiple instance of
-    XPPDriver should be created when testing multiple IC's or
-    parameter values. See main().
+    Initialize XPPWrap for a single simulation instance of an ODE. Multiple
+    instance of XPPWrap should be created when testing multiple IC's
+    or parameter values.
+
+    The XPPWrap object serves as an entry point into xppy, while also
+    acting as a container for returned output analysis and plotting
+    purposes.
     """
     def __init__( self, ODE_file, SET_file=None, IC=None, params=None,
                   discrete=False ):
@@ -34,6 +39,10 @@ class XPPWrap( object ):
         # Non-XPPY arguments
         self.discrete = discrete # for plotting 
         
+    def __repr__( self ):
+        s = "XPPWrap for " + self.ode
+        return s
+        
 
     def run( self ):
         """
@@ -42,10 +51,27 @@ class XPPWrap( object ):
         xppy.createTmp( self.ode )
 
         # run it
-        self.out = xppy.run( )# ode_file )
-        # equivalent to xpp continue
+        self.out = xppy.run( )
+
+        # omit first time axis in self.dim
+        nx, ny = self.out.getRawData().shape
+        self.tmax = nx - 1  # total number of steps/iterations
+        self.dim = ny - 1
+
+    def sample_points( self, npts=50 ):
+        """
+        Returns <npts> random samples from computed trajectory in
+        self.out.
+        """
+        # shuffle the indices as a proxy for shuffling the
+        # array. shuffle is in-place.
+        idx = range( self.tmax )
+        np.random.shuffle( idx )
+
+        # choose the first <npts> indices, and sample self.out at
+        # those indices. 
+        self.samples = self.out.getRawData()[ idx[ :npts ] ]
         
-        #pars = xppy.parse.readOdePars(ode_file, False, True, False)
 
     def plot3d( self, coords=[1,2,3], **kwargs ):
         """
@@ -129,48 +155,52 @@ def main( args ):
     Parse args, write IC file if necessary. Hand off ti XPP object,
     then handle output.
     """
-    # Path to the ODE file
-    ode_file = args.ode 
-
-    xp = XPPWrap( ode_file, discrete=args.discrete )
+    xp = XPPWrap( args.ode, discrete=args.discrete )
     return xp
+
+
+#############################
+## BEGIN ARGUMENT PARSING
+#############################
+parser = argparse.ArgumentParser()
+
+# 
+parser.add_argument( "-v", "--verbosity",
+                    help="increase output verbosity",
+                    action="store_true",
+                    default=False )
+parser.add_argument( "-o", "--ode",
+                     help="Path to ODE file [Mandatory arg]" )
+parser.add_argument( "-i", "--init_cond",
+                     help="Path to file containing IC's [optional]" )
+# parser.add_argument( "-p", "--plot",
+#                      help="Plot data. Used in conjunction with plot_vars." )
+parser.add_argument( "-d", "--discrete",
+                     help="Toggle discrete flag for maps (True) or flows (False). "\
+                     "For plotting purposes only. [False]",
+                     action="store_true",
+                     default=False )
+parser.add_argument( "-p", "--plot",
+                     help="Toggle plotting. [False]",
+                     action="store_true",
+                     default=False )
+                     
+args = parser.parse_args()
+if args.verbosity:
+    print "verbosity turned on"
+if not args.ode:
+    raise ValueError, "Must pass path to IDE file! See usage."
 
 
 if __name__ == "__main__":
     
-
-    #############################
-    ## BEGIN ARGUMENT PARSING
-    #############################
-    parser = argparse.ArgumentParser()
-
-    # 
-    parser.add_argument( "-v", "--verbosity",
-                        help="increase output verbosity",
-                        action="store_true",
-                        default=False )
-    parser.add_argument( "-o", "--ode",
-                         help="Path to ODE file" )
-    parser.add_argument( "-i", "--init_cond",
-                         help="Path to file containing IC's." )
-    # parser.add_argument( "-p", "--plot",
-    #                      help="Plot data. Used in conjunction with plot_vars." )
-    parser.add_argument( "-d", "--discrete",
-                         help="Toggle discrete flag for maps (True) or flows (False). "\
-                         "For plotting purposes only. [False]",
-                         action="store_true",
-                         default=False )
-
-    args = parser.parse_args()
-    if args.verbosity:
-        print "verbosity turned on"
-    if not args.ode:
-        raise ValueError, "Must pass path to IDE file! See usage."
-
     #################
     ##  Run main()
     #################
     XP = main( args )
     XP.run()
-    XP.plot2d( coords=[0,1] )
-    XP.plot3d( )
+
+    if args.plot:
+        XP.plot2d( coords=[1,2] )
+        if 'lorenz' in args.ode:
+            XP.plot3d( )

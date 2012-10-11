@@ -1,0 +1,5 @@
+# lorenz84 set file
+param F=6,a=0.25,b=4,G=1
+set set1 {a=1.25,b=0.3}
+#set set2 {a=.25,c=0,x=1,dt=.1}
+done
