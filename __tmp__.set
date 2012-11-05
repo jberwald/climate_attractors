@@ -1,5 +1,0 @@
-# henon set file
-par a=1.4,b=0.3
-set set1 {a=1.25,b=0.3}
-#set set2 {a=.25,c=0,x=1,dt=.1}
-done
