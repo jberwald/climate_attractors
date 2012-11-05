@@ -3,7 +3,7 @@ param F=6,a=0.25,b=4,G=1
 x'=-y*y-z*z-a*x+a*F
 y'=x*y+b*x*z-y+G
 z'=b*y*z+x*z-z
-init x=.12,y=.95,z=0.0 
-#init x=.93,y=−1.04,z=.58
+#init x=.12,y=.95,z=0.0 
+init x=.93,y=−1.04,z=.58
 @ total=100
 done

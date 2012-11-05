@@ -6,7 +6,7 @@ from mpl_toolkits.mplot3d import Axes3D
 #ode_file = 'lorenz96v2.ode'; color='r'
 
 # Lorenz 84
-ode_file = 'lorenz84.ode'; color='r'
+ode_file = 'lorenz84.ode'; color='b'
 
 # init the xppy object
 xppy.createTmp( ode_file )
@@ -22,30 +22,10 @@ xs = list( out[1] )
 ys = list( out[2] )
 zs = list( out[3] )
 
-# for i in range(20):
-#     print "OUT"
-#     print out.getRawData()
-#     print "    ", out[0]
-#     out = xppy.runLast( out, verbose=False )
-
-#     print out.getRawData()
-
-#     # runLast() computes time from 0..20 only, even though it restarts
-#     # from the latest IC. Account for this below
-#     #0:time, 1:u[1], ..., 21:u[21]
-
-#     print ts
-#     print xs
-    
-#     ts.extend( 20*(i+1)+out[0] )
-#     xs.extend( out[1] )
-#     ys.extend( out[2] )
-#     zs.extend( out[3] )
-
 # first, 3d
 fig = plt.figure( 1 )
 ax = fig.gca(projection='3d')
-ax.plot( xs, ys, zs, color=color )#, lw=3, alpha=0.8)
+ax.plot( xs, ys, zs, color=color, marker='o' )#, lw=3, alpha=0.8)
 ax.set_xlabel("X")
 ax.set_ylabel("Y")
 ax.set_zlabel("Z")
