@@ -57,4 +57,4 @@ if 1:
 fig.show()
 fig2.show()
 
-xppy.cleanUp()
+#xppy.cleanUp()

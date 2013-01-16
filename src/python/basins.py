@@ -13,7 +13,7 @@ Outline:
 
   2. Determine which trajectories limit to the same basin. The goal is
   the learn the hull that defines a basin of attraction. For instance,
-  suppose that we have topologially determined that a region has a
+  suppose that we have topologically determined that a region has a
   fixed point. Now we want to expand this region. If a trajectory
   enters this region we can add the trajectory's IC to the basin of
   attraction. 
@@ -62,7 +62,7 @@ Outline:
     
 """
 import xppwrap as XP
-import topwrap import TopWrapper
+import topwrap as TopWrapper
 
 class TopologyTools( TopWrapper ):
     """

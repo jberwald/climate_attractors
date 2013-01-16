@@ -159,40 +159,40 @@ def main( args ):
     return xp
 
 
-#############################
-## BEGIN ARGUMENT PARSING
-#############################
-parser = argparse.ArgumentParser()
-
-# 
-parser.add_argument( "-v", "--verbosity",
-                    help="increase output verbosity",
-                    action="store_true",
-                    default=False )
-parser.add_argument( "-o", "--ode",
-                     help="Path to ODE file [Mandatory arg]" )
-parser.add_argument( "-i", "--init_cond",
-                     help="Path to file containing IC's [optional]" )
-# parser.add_argument( "-p", "--plot",
-#                      help="Plot data. Used in conjunction with plot_vars." )
-parser.add_argument( "-d", "--discrete",
-                     help="Toggle discrete flag for maps (True) or flows (False). "\
-                     "For plotting purposes only. [False]",
-                     action="store_true",
-                     default=False )
-parser.add_argument( "-p", "--plot",
-                     help="Toggle plotting. [False]",
-                     action="store_true",
-                     default=False )
-                     
-args = parser.parse_args()
-if args.verbosity:
-    print "verbosity turned on"
-if not args.ode:
-    raise ValueError, "Must pass path to IDE file! See usage."
-
-
 if __name__ == "__main__":
+    
+    #############################
+    ## BEGIN ARGUMENT PARSING
+    #############################
+    parser = argparse.ArgumentParser()
+
+    # 
+    parser.add_argument( "-v", "--verbosity",
+                        help="increase output verbosity",
+                        action="store_true",
+                        default=False )
+    parser.add_argument( "-o", "--ode",
+                         help="Path to ODE file [Mandatory arg]" )
+    parser.add_argument( "-i", "--init_cond",
+                         help="Path to file containing IC's [optional]" )
+    # parser.add_argument( "-p", "--plot",
+    #                      help="Plot data. Used in conjunction with plot_vars." )
+    parser.add_argument( "-d", "--discrete",
+                         help="Toggle discrete flag for maps (True) or flows (False). "\
+                         "For plotting purposes only. [False]",
+                         action="store_true",
+                         default=False )
+    parser.add_argument( "-p", "--plot",
+                         help="Toggle plotting. [False]",
+                         action="store_true",
+                         default=False )
+
+    args = parser.parse_args()
+    if args.verbosity:
+        print "verbosity turned on"
+    if not args.ode:
+        raise ValueError, "Must pass path to IDE file! See usage."
+
     
     #################
     ##  Run main()

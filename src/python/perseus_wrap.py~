@@ -1,0 +1,17 @@
+import subprocess as sp
+
+
+def perseus ( fname, output, type='scubtop' ):
+    """
+    Call perseus with the command
+
+    '/usr/bin
+    fname -- 
+        TYPE is input to perseus ex, cubtop, scubtop, etc
+        run perseus
+    """
+    if not path:
+        cmd = [ '/usr/bin/perseus', type, fname, output ]
+    else:
+        cmd = [ path + '/perseus', type, fname, output ] 
+    sp.call(['/usr/bin/perseus', type, fname, output])
