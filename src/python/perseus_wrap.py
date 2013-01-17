@@ -52,6 +52,7 @@ def convert2perseus( data, dtype, **kwargs ):
 
 def write_time_series( data, **kwargs ):
     """
+    data -- numpy array
     """
     fargs = {'output' : None,
              'radius_scaling' : 1,
