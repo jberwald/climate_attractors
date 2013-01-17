@@ -1,5 +1,5 @@
 from climate_attractors.src.python import perseus_wrap as perseus
-import numpy as np
+from numpy import loadtxt, load
 
 
 """
@@ -34,9 +34,9 @@ def compute_diagrams_block( datafile, t0, length, dtype='timeseries', persfile=N
             kwargs.update( {'output': persin} )
             
     try:
-        data = np.load( datafile )
+        data = load( datafile )
     except IOError:
-        data = np.loadtxt( datafile )
+        data = loadtxt( datafile )
     data_window = data[ t0 : t0+length ]
 
     # convert timeseries window to perseus format
@@ -48,6 +48,10 @@ def compute_diagrams_block( datafile, t0, length, dtype='timeseries', persfile=N
     
     return persin, persout
 
+def create_vineyard( datafile, t0, tstep, w0, wstep, **kwargs ):
+    """
+    """
+    pass
 
 if __name__ == "__main__":
 
