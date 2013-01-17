@@ -1,7 +1,8 @@
 import subprocess as sp
-import numpy as np
+from numpy import loadtxt, load
 import matplotlib.pyplot as plt
 import argparse
+import os
 
 space = " "
 slash = "/"
@@ -22,7 +23,7 @@ def perseus ( fname, output, dtype='scubtop', path=None, debug=False ):
     See http://www.math.rutgers.edu/~vidit/perseus.html for more
     details.
     """
-    if not path:
+    if os.uname()[0] == 'Darwin':
         cmd = [ '/usr/bin/perseus3', dtype, fname, output ]
     else:
         cmd = [ path + '/perseus', dtype, fname, output ]
@@ -30,7 +31,11 @@ def perseus ( fname, output, dtype='scubtop', path=None, debug=False ):
     if debug:
         print "Command: "
         print cmd
-    result = sp.call( cmd )
+    try:
+        result = sp.call( cmd )
+    except OSError:
+        print "subprocess failed!"
+        print "command passed to subprocess:", cmd
     return result
 
 def convert2perseus( data, dtype, **kwargs ):
@@ -62,9 +67,9 @@ def write_time_series( data, **kwargs ):
     if not hasattr( data, '__index__' ):
         # .npy or .txt
         try:
-            data = np.load( data )
+            data = load( data )
         except IOError:
-            data = np.loadtxt( data )
+            data = loadtxt( data )
 
     if not fargs['output'].endswith( 'txt' ):
         fargs['output'] += '.txt'
