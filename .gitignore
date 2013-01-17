@@ -15,6 +15,7 @@ develop-eggs
 
 # folders
 figures/
+src/python/sandbox/data/
 
 # Installer logs
 pip-log.txt

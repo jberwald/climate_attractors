@@ -26,7 +26,7 @@ def perseus ( fname, output, dtype='scubtop', path=None, debug=False ):
     if os.uname()[0] == 'Darwin':
         cmd = [ '/usr/bin/perseus3', dtype, fname, output ]
     else:
-        cmd = [ path + '/perseus', dtype, fname, output ]
+        cmd = [ 'perseus', dtype, fname, output ]
 
     if debug:
         print "Command: "

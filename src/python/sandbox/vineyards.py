@@ -2,9 +2,6 @@ from climate_attractors.src.python import perseus_wrap as perseus
 from numpy import loadtxt, load
 
 
-"""
-In which we implement analysis of persistence diagrams of different window sizes...
-"""
 def compute_diagrams_block( datafile, t0, length, dtype='timeseries', persfile=None, **kwargs ):
     """
     Compute the persistence diagrams for the window from a time series.
