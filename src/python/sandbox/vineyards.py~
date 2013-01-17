@@ -1,0 +1,47 @@
+from climate_attractors.src.python import perseus_wrap as perseus
+import numpy as np
+
+
+"""
+In which we implement analysis of persistence diagrams of different window sizes...
+"""
+def compute_diagrams_block( t0, length, datafile, dtype='timeseries',
+                            persfile=None, **kwargs ):
+    """
+    Compute the persistence diagrams for the window from a time series.
+
+    t0 -- start of time series window
+
+    length -- length of the window. eg., window = [t0, t0+window)
+
+    datafile -- path to the data file (text or numpy)
+
+    Optional:
+    ---------
+    
+    persfile -- full path to write perseus input file. (Default is to
+    append '_pers' to datafile).
+
+    For kwargs, see perseus_wrap.write_time_series().
+    """
+    if persfile:
+        persout = persfile
+    else:
+        if datafile.endswith( 'npy' ) or datafile.endswith( 'txt' ):
+            dfile = datafile[:-4] # also strip '.'
+            persout = dfile + '_pers.txt'
+    output = perseus.convert2perseus( window, dtype=dtype, output=persout, **kwargs )
+    return output
+
+
+if __name__ == "__main__":
+
+    data = "./data/genbif0.txt"
+    length = 200
+    bradius = 0.01
+    k = 1
+    stepsize = 0.1
+
+    for t in [800]:
+        compute_diagram_block( t, length, data, nsteps=100,
+                               bradius=bradius, k=1, stepsize=stepsize )
