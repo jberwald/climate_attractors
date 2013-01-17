@@ -49,7 +49,7 @@ def write_time_series( data, **kwargs ):
     """
     """
     fargs = {'output' : None,
-             'k' : 0.1,
+             'radius_scaling' : 1,
              'stepsize' : 0.2,
              'nsteps' : 10,
              'bradius' : None,
@@ -69,24 +69,23 @@ def write_time_series( data, **kwargs ):
     if not fargs['output'].endswith( 'txt' ):
         fargs['output'] += '.txt'
 
-    # # compute initial radii if necessary
-    # if not fargs['bradius']:
-    #     diff = data[:-1,1] - data[1:,1]
-    #     br = str( np.abs( diff.min() ) )
-    # else:
+    # This gets appended to the end of every line
     br = str( fargs['bradius'] )
         
     with open( fargs['output'], 'w' ) as fh:
         # ambient dimension
         fh.write( str( fargs['embed_dim'] )+'\n' )
+        
         # initial threshold, step size, num steps, dimension cap==ny
-        params = [ str( fargs['k'] ),
+        params = [ str( fargs['radius_scaling'] ),
                    str( fargs['stepsize'] ),
                    str( fargs['nsteps'] )
                    ]
         params = space.join( params )
         params += '\n'
         fh.write( params )
+
+        # now write the time series and birth radii to disk
         for obs in data:
             try:
                 r = [ str( x ) for x in obs ]
@@ -98,7 +97,9 @@ def write_time_series( data, **kwargs ):
             r += '\n'
             fh.write( r )
     print "wrote file to ", fargs['output']
-    return data
+    out = { 'filename' : fargs['output'],
+            'data' : data }
+    return out
 
 
 def write_distance_mat( data, **kwargs ):
@@ -275,14 +276,13 @@ if __name__ == "__main__":
             print "data_window.shape:", data_window.shape
             suffix = '_' + str( start ) + '_' + str( window )
             persfile = pers + suffix
-            d = convert2perseus( data_window, dtype='timeseries',
-                                 output=persfile, k=1,
-                                 stepsize=0.01, nsteps=100,
-                                 bradius=birth_rad,
-                                 )
-
+            out = convert2perseus( data_window, dtype='timeseries',
+                                   output=persfile, radius_scaling=1,
+                                   stepsize=0.01, nsteps=100,
+                                   bradius=birth_rad,
+                                   )
             persout = outprefix + '_' + str( start ) + '_' + str( window ) + '_out'
-            res = perseus( persfile+'.txt', persout, dtype='brips', debug=True )
+            res = perseus( out['filename']+'.txt', persout, dtype='brips', debug=True )
 
             # now plot a diagram
             fig = plot_diagram( persout + '_0.txt', title=persout+r'-- $\beta_0$',
