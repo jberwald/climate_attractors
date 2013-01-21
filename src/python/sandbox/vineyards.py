@@ -1,6 +1,7 @@
 import numpy as np
 from climate_attractors.src.python import perseus_wrap as perseus
 import matplotlib.pyplot as plt
+from itertools import ifilter
 
 
 def compute_diagram_block( data, t0, length, persin=None, dtype='timeseries', **kwargs ):
@@ -42,14 +43,18 @@ def compute_diagram_block( data, t0, length, persin=None, dtype='timeseries', **
     
     return persin, persout
 
-def plot_diagram_window_range( fpath, tstart, tend, wstart, wend, wsteps, **kwargs ):
+def concatenate_windows( fpath, tstart, tend, wstart, wend, wsteps, **kwargs ):
     """
-    Plot a collection of persistence diargrams on one set of axes, (time) x (death time). We can do this because all 0-persistent generators share the same birth time (I think...).
+    Plot a collection of persistence diargrams on one set of axes,
+    (time) x (death time). We can do this because all 0-persistent
+    generators share the same birth time (I think...).
 
     fpath -- full path plus prefix to collection of Perseus output files. 
 
-             Eg., fpath = '/path/to/files/genbif0_pers' so that the full path becomes
-             /path/to/files/genbif0_pers_[t0]_[window]_[dim].txt (dim==0 by default)
+             Eg., fpath = '/path/to/files/genbif0_pers' so that the
+             full path becomes
+             /path/to/files/genbif0_pers_[t0]_[window]_[dim].txt
+             (dim==0 by default)
 
     tstart -- first t0 value at which persistence computed (int)
 
@@ -59,7 +64,8 @@ def plot_diagram_window_range( fpath, tstart, tend, wstart, wend, wsteps, **kwar
 
     wend -- maximum window size (int)
 
-    wsteps -- integer steps between window sizes. Eg., range( wstart, wend, wsteps )
+    wsteps -- integer steps between window sizes. Eg., range( wstart,
+    wend, wsteps )
 
     Note: This is far from optimized. It'll get the job done,though.
     """
@@ -78,46 +84,173 @@ def plot_diagram_window_range( fpath, tstart, tend, wstart, wend, wsteps, **kwar
         fpath += '_'
     points = dict()
     max_y = -1
-    for t in xrange( t_scale*tstart, t_scale*tend ):
-        points[t] = dict()
-        for w in range( wstart, wend, wsteps ):
-            persistence_file = fpath + str( t ) + under + str( w ) + under + str( dim ) + '.txt'
-            data = np.loadtxt( persistence_file )            
+    for w in range( wstart, wend, wsteps ):
+        points[w] = []
+        for t in xrange( t_scale*tstart, t_scale*tend ):
+            persistence_file = fpath + str( t ) + under + str( w ) +\
+                under + str( dim ) + '.txt'
+            data = np.loadtxt( persistence_file, dtype=np.int )            
             try:
-                points[t][w] = data[:,1] # we only want death times
+                points[w].append( data[:,1] ) # we only want death times
                 dmax = data[:,1].max()
                 # update maximum for plotting
                 if max_y < dmax:
                     max_y = dmax
             except IndexError:
-                points[t][w] = data[1] # just 1D array
+                points[w].append( data[1] ) # just 1D array
+    # postprocess the points to account for the non-invertability of
+    # the vineyard "function". This is solely for plotting purposes.
+    for k in points.keys():
+        points[k] = convert_infs( points[k], max_y )
+        points[k] = combines_branches( points[k], t0 = tstart )
 
-    # concatenate window information for plotting
-    windows = dict()    
-    for w in range( wstart, wend, wsteps ):
-        wy = []
-        for t in xrange( t_scale*tstart, t_scale*tend ):
-            ny = points[t][w]
-            print t
-            print w
-            print ny
-            print ""
-            if hasattr( ny, "__index__" ):
-                for death_time in ny:
-                    if death_time == -1:
-                        wy.append( death_time )
-                    else: 
-                        wy.append( max_y + 1 )
-            # single real number, probably -1 (infinite generator)
+    return points 
+
+def convert_infs( vals, max_val ):
+    """
+    Helper function to convert all -1's to max_val + 1
+    
+    vals -- list of singletons or arrays with death times.
+
+    max_val -- maximum death time encountered.
+
+    Returns list with all -1's replaced by max_val+1
+    """
+    m = max_val + 1
+    for i, x in enumerate( vals ):
+        # x is a singleton
+        if hasattr( x, 'bit_length' ):
+            if x == -1: vals[i] = m
+        # x is an array of death times
+        else:
+            w = np.where( x==-1 )[0]
+            x[w] = m
+            vals[i] = x
+    return vals
+
+def combine_branches( vals, t0=0 ):
+    """
+    Extract arrays from lists of death times and rearrange into
+    multiple 1D lists for plotting.
+
+    vals -- list of death 'times', with some indices containing
+    multiples deaths (hence the mixture of singletons and arrays that
+    we're trying to separate).
+
+    t0 -- (optional) start time to add to the enumeration.
+
+    Returns a dict of key : (time,death) or key :
+    [(time,death1),(time,death2)]
+    """
+    # list to hold the main array. We add extra lists to hold (n-1)
+    # branches (one can continue in main list)
+    vine = {}
+    branch_idx = []
+    for i,val in enumerate( vals ):
+        if hasattr( val, 'bit_length' ):
+            vine[i] = ( t0+i, val )
+        else:
+            branch_idx.append( i )
+            # multiple death times; add the branches until back to
+            # singletons
+            branches = [ ( t0+i, y ) for y in val ]
+            vine[ i ] = branches
+    # single_idx = [ idx for idx in vine.iterkeys() 
+    #                if idx not in branch_idx ]
+    return vine, branch_idx
+
+def create_vines( vineyard ):
+    """
+    A vineyard contains many deaths at the same time instance. Split
+    these up to create separate 'functions' to be plotted. This allows
+    the use of fun stuff like 'fill_between', etc.
+    """
+    vals = vineyard.values()
+    vines = []
+    single_vine = []
+    single = True
+    for i, current in enumerate( vals[:-1] ):
+        if type( current ) == tuple:
+            next = vals[i+1]
+            # stepping up from single vine to multiple vines
+            if type( next ) != tuple:
+                # we're leaving a single strand, so set single to
+                # false and append single strand to vines
+                single = False
+                vines.append( single_vine )
+                
+                # now deal with split
+                next.sort() # min --> max
+                min_death = next[0]
+                max_death = next[-1]
+                v1 = [ current, min_death ]
+                v2 = [ current, max_death ]
+                vines.append( v1 )
+                vines.append( v2 )
+            # just another point on a single vine
             else:
-                if ny == -1:
-                    wy.append( max_y + 1 )
+                if single:
+                    single_vine.append( current )
                 else:
-                    wy.append( ny )
-        windows[ w ] = set( wy ) 
-    return points, windows
+                    # start a new single strand
+                    single_vine = [ current ]
+        else:
+            next = vals[i+1]
+            # we're already on multiple vines
+            if type( next ) != tuple:
+                next.sort()
+                current.sort() # min --> max
+                min_current = current[0]
+                max_current = current[-1]
+                min_next = next[0]
+                max_next = next[-1]
+                v1 = [ min_current, min_next ]
+                v2 = [ max_current, max_next ]
+                vines.append( v1 )
+                vines.append( v2 )
+            # step down from multiple vines to a single vine
+            else:
+                single = True
+                current.sort()
+                min_current = current[0]
+                max_current = current[-1]
+                v1 = [ min_current, next ]
+                v2 = [ max_current, next ]
+                vines.append( v1 )
+                vines.append( v2 )
+    return vines
+    
+        
+            
+def plot_vineyard( vine, aspect_ratio='auto', fig=None, **kwargs ):
+    """
+    Plot the (time) x (death time), accounting for multiple death
+    times at a single time t.
+    """
+    fargs = { 'marker' : 'o',
+              'markersize' : 4,
+              'color' : 'b'
+              }
+    fargs.update( kwargs )
 
-def create_vineyard( datafile, tstart, tend, wstart, wend, wsteps=1, debug=False, **kwargs ):
+    if not fig:
+        fig = plt.figure()
+        ax = fig.gca()
+        ax.set_aspect( aspect_ratio )    
+    else:
+        ax = fig.gca()
+    
+
+    for time_slice in vine.itervalues():
+        if type( time_slice ) == tuple:
+            ax.plot( time_slice[0], time_slice[1], **fargs )
+        else:
+            for x in time_slice:
+                ax.plot( x[0], x[1], **fargs )
+    return fig
+
+def create_vineyard( datafile, tstart, tend, wstart, wend, 
+                     wsteps=1, debug=False, **kwargs ):
     """
     Run loops across time and over various window sizes.
 
@@ -164,14 +297,18 @@ def create_vineyard( datafile, tstart, tend, wstart, wend, wsteps=1, debug=False
 
 if __name__ == "__main__":
 
+    import cPickle as pkl
+
     #dfile = "./data/genbif0.txt"
     dfile = '/sciclone/data10/jberwald/climate_attractors/persistence/bif0/genbif0.txt'
+    dprefix = '/sciclone/data10/jberwald/climate_attractors/persistence/bif0/genbif0_pers'
 
     # these are multiplied by 10 later on
-    t0 = 700
-    t1 = 900
+    t0 = 8000
+    t1 = 9000
     w0 = 50
     w1 = 300
+    wsteps = 50
 
     length = 200
     bradius = 0.01
@@ -180,8 +317,29 @@ if __name__ == "__main__":
     timeseries_steps = 10 # steps sizes of 0.1
 
 
-    create_vineyard( dfile, 7000, 9000, 50, 300, 
-                     wsteps=10,timeseries_steps=1 )
+#    create_vineyard( dfile, 7000, 9000, 50, 300, 
+#                     wsteps=10,timeseries_steps=1 )
+
+    #pts = concatenate_windows( dprefix, t0, t1, w0, w1, wsteps, timeseries_steps=1 )
+    
+    with open( './data/vine_8000_9000_50_300.pkl' ) as fh:
+        vines = pkl.load( fh )
+
+    vine_segs = {}
+    for k in vines.keys():
+        vine_segs[k] = create_vines( vines[k] )
+    # color = ['b','g','m','c']
+    # aspect_ratio = 100
+    # fig = plot_vineyard( vines[50], color='r', aspect_ratio=aspect_ratio )
+    # keys = vines.keys()
+    # keys.sort()
+    # skip k=50
+    # for i,k in enumerate( vines.keys()[1:] ):
+    #     fig = plot_vineyard( vines[k], color=color[i], 
+    #                          aspect_ratio=aspect_ratio, fig=fig )
+    # fig.savefig( './data/vines_'+str(keys[0])+'_'+str(keys[-1])+'.png', 
+    #              transparent=True )
+    
 
     # for t in [ 800, 861 ]:
     #     t0 = timeseries_steps * t
