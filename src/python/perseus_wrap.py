@@ -107,66 +107,6 @@ def write_time_series( data, **kwargs ):
             'data' : data }
     return out
 
-
-def write_distance_mat( data, **kwargs ):
-    """
-    Create a distance matrix to be used with
-
-    'perseus distmat <path to distance matrix file> <output string>'
-
-    kwargs:
-
-    See http://www.math.rutgers.edu/~vidit/perseus.html for
-    details. Some args are for scipy.distance.pdist. 'g', 'stepsize',
-    and 'nsteps' are for the header line in the output file for
-    perseus.
-
-    If output is not specified, no file is written to disk. Only the
-    pdist matrix is returned (this is mostly for testing).
-    """
-    fargs = {'output' : None,
-             'g' : 0.1,
-             'stepsize' : 0.2,
-             'nsteps' : 10,
-             'dcap' : None,
-             'metric': 'euclidean'
-             }
-    fargs.update( kwargs )
-    
-    # load from file if data is not an array of points
-    if not hasattr( data, '__index__' ):
-        # .npy or .txt
-        try:
-            data = np.load( data )
-        except IOError:
-            data = np.loadtxt( data )
-    dist = distance.pdist( data, metric=metric )
-    if output:
-        dist = distance.squareform( dist )
-        space = " "
-        # num points x dimension
-        nx, ny = data.shape
-        if not dcap:
-            dcap = ny
-        if not output.endswith( 'txt' ):
-            output += '.txt'
-        with open( output, 'w' ) as fh:
-            # nx x nx distance matrix
-            fh.write( str( nx )+'\n' )
-            # initial threshold, step size, num steps, dimension cap==ny
-            params = [ str( g ), str( stepsize ), str( nsteps ), str( dcap ) ]
-            params = space.join( params )
-            params += '\n'
-            fh.write( params )
-            for row in dist:
-                r = [ str( x ) for x in row ]
-                r = space.join( r )
-                r += '\n'
-                fh.write( r )
-        return dist
-    else:
-        return distance.squareform( dist )
-
 def plot_diagram( persFile, fontsize=12, scale=None, color='b',
                   show_fig=True, fig=None, title=None ):
     """
