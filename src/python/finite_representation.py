@@ -34,7 +34,7 @@ class BoxTree( Tree ):
 class FiniteRepresentation( object ): 
     """
     """
-    def __init__( self, data, tree, noise ):
+    def __init__( self, data, tree, noise, expansion=1. ):
         """
         Created a finite representation of the dynamics of a system
         from a collection of temporally ordered data points.
@@ -56,6 +56,8 @@ class FiniteRepresentation( object ):
         self.noise = noise
         self.tree = tree
         self.dim = data.ndim
+        self.expansion = expansion # constant expansion rate (very
+                                   # crude approximation of dynamics)
   
     def _add_box( self, box ):
         """
@@ -84,11 +86,35 @@ class FiniteRepresentation( object ):
             width = b[1]
         bx = np.array( [ anchor, width ] )
         return bx
+    
+    def _expand_equal( self, idx ):
+        """
+        Expand box dimension equally by self.expansion in all
+        directions. Since boxes are anchored in lower left corner,
+        shift each coordinate by (self.expansion * w - w )/2, where w
+        is the width of the box in each dimension.
+
+        box : array( [[ x1,...,xd ], [ w1,...,wd ]] )
+
+        Returns expanded and shifted box
+        """
+        B = self.tree.boxes()
+        anchors = B.corners[ idx ]
+        width = B.width
+        new_width = self.expansion * width
+        shift = ( new_width - width ) / 2.
+        new_anchors = anchors - shift
+        new_box = np.array( [ new_anchors, new_width ] )
+        print new_box
+        print ""
+        return new_box
         
     def add_error_boxes( self ):
         """
         Intersect each noise box containing a data point with the grid
-        contained in Tree.
+        contained in Tree. This is used to construct the grid on the
+        phase space without a MVM. the MVM function perform the same
+        operation during the construction of the map.
         """
         if hasattr( self.noise[0], '__len__' ):
             self._add_boxes_tuple()  # TODO
@@ -98,28 +124,8 @@ class FiniteRepresentation( object ):
                 self._add_box( box )
 
     def boxes( self ):
+        """ Return a list of all boxes in the tree. """
         return self.tree.boxes()
-          
-    def show_boxes( self, color='b', alpha=0.6 ):
-        """
-        """
-        gfx.show_uboxes( self.boxes(), col=color )
-
-    def show_error_boxes( self, box=None, color='r', alpha=0.6 ):
-        """
-        """
-        error_boxes = izip( self.data, self.noise )
-        for b in error_boxes:
-            # shift center to lower left corner anchor
-            bx = self._make_box( b )
-            gfx.show_box( bx, col=color, alpha=alpha )
-
-    # def show_mvm_boxes( self, bcolor='b', ecolor='r' ):
-    #     """
-    #     """
-    #     pos = dict()
-    #     nbunch = self.graph.
-    # TODO  ...
 
     def construct_mvm_simple( self ):
         """
@@ -127,6 +133,41 @@ class FiniteRepresentation( object ):
         intersecting error_box[i] are mapped to boxes intersecting
         error_box[i+1]. No expansion estimates are used. 
         """
+        # store the finite representation
+        self.mvm = DiGraph()
+
+        # generator to save memory
+        error_boxes = izip( self.data, self.noise )
+
+        # pull first time step off the top 
+        pred = self._make_box( error_boxes.next() )
+        pred_ids = self.tree.search( pred )
+        
+        # iteration starts at second element
+        for succ in error_boxes:
+            bx = self._make_box( succ )
+            self.tree.insert( bx )
+            succ_ids = self.tree.search( bx )
+            
+            # loop over boxes in predecessor region and connect to
+            # those in successor regions
+            for u in pred_ids:
+                for v in succ_ids:
+                    self.mvm.add_edge( u, v )
+            # update predecessor for next time step
+            pred = succ
+            pred_ids = succ_ids
+
+    def construct_mvm_expansion( self ):
+        """
+        Construct a directed graph on the boxes in self.tree
+        using. Boxes G_i intersecting error_box[i] are mapped to boxes
+        G_{i+1} intersecting error_box[i+1] with expansion rate
+        C. Thus the image boxes are expanded equally in all directions
+        by a factor C > 1. This image is intersected with boxes in the
+        tree and the image is updated.
+        """
+        # store the finite representation
         self.mvm = DiGraph()
 
         # generator to save memory
@@ -136,11 +177,25 @@ class FiniteRepresentation( object ):
         pred = self._make_box( error_boxes.next() )
         pred_ids = self.tree.search( pred )
 
+        # loop optimizations
+        maker = self._make_box
+        expander = self._expand_equal
+        tree_insert = self.tree.insert
+        tree_search = self.tree.search
+        
         # iteration starts at second element
         for succ in error_boxes:
+            # error in 'box' form
             bx = self._make_box( succ )
             self.tree.insert( bx )
             succ_ids = self.tree.search( bx )
+            
+            # apply expansion to image
+            ex_box = self._expand_equal( succ_ids )
+
+            # DANGER! THIS MIGHT DOUBLE INSERT BOXES
+            self.tree.insert( ex_box )       
+
             # loop over boxes in predecessor region and connect to
             # those in successor regions
             for u in pred_ids:
@@ -172,11 +227,28 @@ class FiniteRepresentation( object ):
             self.full_mvm.graph = self.mvm.copy()
         self.mvm.remove_nodes_from( non_scc )
 
+    def show_boxes( self, color='b', alpha=0.6 ):
+        """
+        """
+        fig = gfx.show_uboxes( self.boxes(), col=color )
+        return fig
+
+    def show_error_boxes( self, box=None, color='r', alpha=0.6, fig=None ):
+        """
+        """
+        error_boxes = izip( self.data, self.noise )
+        for b in error_boxes:
+            # shift center to lower left corner anchor
+            bx = self._make_box( b )
+            fig = gfx.show_box( bx, col=color, alpha=alpha, fig=fig )
+        return fig
+
+
 
             
 if __name__ == "__main__":
     
-    npts = 100
+    npts = 6
 
     # initial compact region X, anchored at (-2.0,2), w x h = 4 x 4
     box = np.array([[-2.0,-2],[4,4]])
@@ -196,22 +268,23 @@ if __name__ == "__main__":
     print ""
     print "noise", noise
     print ""
-    
     FR = FiniteRepresentation( data, tree, noise )
-    FR.add_error_boxes()
-    print "Constructed tree and error boxes"
+    #FR.add_error_boxes()
+    # print "Constructed tree and error boxes"
 
     FR.construct_mvm_simple()
+    FR.expansion = 4.0
+    #FR.construct_mvm_expansion()
     print "MVM done!"
 
-    FR.graph_maximal_inv_set()
-    print "Computed maximal invariant set (SCC)!"
+    # FR.graph_maximal_inv_set()
+    # print "Computed maximal invariant set (SCC)!"
 
-    if len( FR.mis ) != len( FR.mvm ):
-        print "There are", len( FR.mvm ) - len( FR.mis ), "transient nodes."
-        FR.trim_graph()
-        print "Trimmed graph down the maximal invariant set (SCC)."
+    # if len( FR.mis ) != len( FR.mvm ):
+    #     print "There are", len( FR.mvm ) - len( FR.mis ), "transient nodes."
+    #     FR.trim_graph()
+    #     print "Trimmed graph down the maximal invariant set (SCC)."
     
-    FR.show_boxes()
-    FR.show_error_boxes( color='r' )
+    fig = FR.show_boxes()
+    fig = FR.show_error_boxes( color='r', fig=fig )
 

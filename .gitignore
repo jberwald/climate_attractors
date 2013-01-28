@@ -1,5 +1,10 @@
 *.py[co]
+*.py~
 *.log
+*.bak
+
+# graphics extensions
+*.png
 
 # Packages
 *.egg
