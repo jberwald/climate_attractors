@@ -1,0 +1,29 @@
+Installation instructions for building and installing RADS (Rigorous
+Analysis of Dynamical Systems) on Linux and Mac.
+
+Requirements:
+
+* Python
+
+Python2.7 (not Python3.*) and Cython. The best option
+for Mac is to download and install Enthought (there is a free kitchen
+sink academic version). On Linux, make sure that python-dev and cython-dev, etc have been installed for the necessary include files. 
+
+* CAPD
+
+An interval arithmetic library is needed to build RADS. The version we
+use is CAPD, found here: http://capd.ii.uj.edu.pl/. Download and build/install. This might take a few minutes. Also, the homology library (RedHom) is not needed, so grab the smaller package if possible.
+
+
+To build:
+
+1. Edit a suitable config_*.py file for your system (copy config_*.py to config_*.py.bak first!)
+2. Edit entries of config_*.py to match your system. (config_MAC.py has a few comments that apply to both systems)
+3. Run makeit or makeit_MAC in the base directory
+4. Compiled files should now appear in build/lib
+
+Good Luck!! 
+
+
+
+
