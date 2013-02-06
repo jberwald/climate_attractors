@@ -20,6 +20,8 @@ include = {
 	'numpy': '/usr/local/lib/python2.7/dist-packages/numpy/core/include/',
 }
 
+# These are leftovers from when Profil was used. Must link to CAPD
+# library. See config_MAC.py for examples.
 link = {
 	'profil': dirs['profil']+'lib/',
 	'c++ cython': '-lProfil -llr -lBias -o'.split(),
