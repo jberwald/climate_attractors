@@ -6,18 +6,22 @@ from rads.misc import gfx
 from rads.graphs import DiGraph
 from rads.graphs import algorithms as alg
 from itertools import izip
+import cPickle as pkl
+from networkx import write_dot, write_gpickle
 
 
 class BoxTree( Tree ):
     """
-    Inherits from Tree. Mostly local wrapper for functionality.
+    Inherits from Tree. Local wrapper for functionality. Making
+    it a separate object in case it has to do new and exciting things
+    (like stretch boxes in odd ways).
     """
     def __init__( self, region, depth=6 ):
         """
         Initialize BoxTree with (compact) 'region'. Specify depth if
         desired. Number of boxes will equal (dim^depth)/2.
         """
-        self.tree = Tree( region )
+        self.tree = Tree( region, full=True )
         for i in range( depth ):
             self.tree.subdivide()
 
@@ -30,6 +34,8 @@ class BoxTree( Tree ):
     def boxes( self ):
         return self.tree.boxes()
 
+    def remove( self, boxes ):
+        self.tree.remove( boxes )
 
 class FiniteRepresentation( object ): 
     """
@@ -56,6 +62,10 @@ class FiniteRepresentation( object ):
         self.noise = noise
         self.tree = tree
         self.dim = data.ndim
+
+        # x_i |--> {grid elements} mapping
+        self.data_hash = {}
+        
         self.expansion = expansion # constant expansion rate (very
                                    # crude approximation of dynamics)
   
@@ -131,7 +141,7 @@ class FiniteRepresentation( object ):
         """
         Construct a directed graph on the boxes in self.tree. Boxes
         intersecting error_box[i] are mapped to boxes intersecting
-        error_box[i+1]. No expansion estimates are used. 
+        error_box[i+1]. [No expansion estimates are used.]
         """
         # store the finite representation
         self.mvm = DiGraph()
@@ -139,9 +149,12 @@ class FiniteRepresentation( object ):
         # generator to save memory
         error_boxes = izip( self.data, self.noise )
 
-        # pull first time step off the top 
+        # pull first time step off the top
+        data_idx = 0
         pred = self._make_box( error_boxes.next() )
         pred_ids = self.tree.search( pred )
+
+        self.data_hash[ data_idx ] = pred_ids
         
         # iteration starts at second element
         for succ in error_boxes:
@@ -149,14 +162,18 @@ class FiniteRepresentation( object ):
             self.tree.insert( bx )
             succ_ids = self.tree.search( bx )
             
-            # loop over boxes in predecessor region and connect to
+            # loop over boxes in predecessor region and create edge to
             # those in successor regions
             for u in pred_ids:
                 for v in succ_ids:
                     self.mvm.add_edge( u, v )
+                    
             # update predecessor for next time step
             pred = succ
             pred_ids = succ_ids
+            data_idx += 1
+            self.data_hash[ data_idx ] = pred_ids
+            
 
     def construct_mvm_expansion( self ):
         """
@@ -187,6 +204,7 @@ class FiniteRepresentation( object ):
         for succ in error_boxes:
             # error in 'box' form
             bx = self._make_box( succ )
+            # intersect with subdivision
             self.tree.insert( bx )
             succ_ids = self.tree.search( bx )
             
@@ -205,7 +223,7 @@ class FiniteRepresentation( object ):
             pred = succ
             pred_ids = succ_ids
 
-    def graph_maximal_inv_set( self ):
+    def graph_mis( self ):
         self.mis = alg.graph_mis( self.mvm )
 
     def trim_graph( self, copy=False ):
@@ -227,6 +245,35 @@ class FiniteRepresentation( object ):
             self.full_mvm.graph = self.mvm.copy()
         self.mvm.remove_nodes_from( non_scc )
 
+    def pickle_tree( self, fname, tree=None ):
+        """
+        Extact necessary information to create a persistent object.
+        """
+        if not tree:
+            tree = self.tree
+        b = tree.boxes()
+        tree_dict = { 'corners' : b.corners,
+                      'width' : b.width,
+                      'dim' : b.dim,
+                      'size' : b.size
+                      }
+        with open( fname, 'wb' ) as fh:
+            pkl.dump( tree_dict, fh )
+
+    def write_mvm( self, fname, stype='dot' ):
+        """
+        A wrapper around NX's graph writers.
+
+        fname : full path to save graph to
+
+        type : 'pkl' or 'dot' (default).  'pkl' => pickle the
+        graph. 'dot' => save graph in dot format (more portable)
+        """
+        if stype == 'pkl':
+            write_gpickle( self.mvm.graph, fname )
+        else:
+            write_dot( self.mvm.graph, fname )       
+
     def show_boxes( self, color='b', alpha=0.6 ):
         """
         """
@@ -237,6 +284,9 @@ class FiniteRepresentation( object ):
         """
         """
         error_boxes = izip( self.data, self.noise )
+        # boxes = [ self._make_box( b ) for b in error_boxes ]
+        # gfx.show_boxes( error_boxes, S=range( len(boxes) ), col=color,
+        #                 alpha=alpha, fig=fig )
         for b in error_boxes:
             # shift center to lower left corner anchor
             bx = self._make_box( b )
@@ -247,26 +297,27 @@ class FiniteRepresentation( object ):
             
 if __name__ == "__main__":
     
-    npts = 100
+    npts = 2000
 
     # initial compact region X, anchored at (-2.0,2), w x h = 4 x 4
     box = np.array([[-2.0,-2],[4,4]])
 
-    # the trunk
-    depth = 9 # AKA resolution
+    # init the tree
+    depth = 7 # AKA resolution, 2^{-9} boxes 
     tree = BoxTree( box, depth )
 
     # boxes defined by lower corner followed by width and height. So
     # np.array( [[1,2.],[1,3]] ) is anchored at (1,2), has width 1 and
     # height 3. Definition extends for higher dimensions (row 0 == anchor,
     # row 1 == size in j'th dimension).
-    all_data = np.loadtxt( 'sandbox/squareNoiseHenonLong.txt' )
+    all_data = np.loadtxt( '../sandbox/squareNoiseHenonLong.txt' )
     data = all_data[:npts,:2]
     noise = all_data[:npts,2]
-    print "data", data
-    print ""
-    print "noise", noise
-    print ""
+    print "Read data and noise arrays"
+    # print "data", data
+    # print ""
+    # print "noise", noise
+    # print ""
     FR = FiniteRepresentation( data, tree, noise )
     #FR.add_error_boxes()
     # print "Constructed tree and error boxes"
@@ -277,17 +328,22 @@ if __name__ == "__main__":
     #FR.construct_mvm_expansion()
     print "MVM done!"
 
-    # FR.graph_maximal_inv_set()
+    FR.graph_mis()
+
+    FR.tree.remove( list(set(range(FR.tree.tree.size))-set(FR.mis)) )
+
     # print "Computed maximal invariant set (SCC)!"
+    # print "len(FR.mis) = ", len( FR.mis )
 
     # if len( FR.mis ) != len( FR.mvm ):
     #     print "There are", len( FR.mvm ) - len( FR.mis ), "transient nodes."
     #     FR.trim_graph()
     #     print "Trimmed graph down the maximal invariant set (SCC)."
-    
+
+    print "Plotting boxes... "
     fig = FR.show_boxes()
     fig = FR.show_error_boxes( color='r', fig=fig )
 
-    fig2 = gfx.plt.figure()
-    ax = fig2.gca()
-    FR.mvm.draw( nodes_size=80, node_color='g', alpha=0.6, ax=ax)
+    # fig2 = gfx.plt.figure()
+    # ax = fig2.gca()
+    # FR.mvm.draw( nodes_size=80, node_color='g', alpha=0.6, ax=ax)

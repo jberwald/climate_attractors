@@ -54,6 +54,8 @@ def convert2perseus( data, dtype, **kwargs ):
 def write_time_series( data, **kwargs ):
     """
     data -- numpy array
+
+    Writes a time series to a Persues-readable Vietoris-Rips format.
     """
     fargs = {'output' : None,
              'radius_scaling' : 1,
@@ -215,8 +217,8 @@ if __name__ == "__main__":
 
     data = np.loadtxt( fname )
     birth_rad = 0.01
-    for start in [800]: #[400,800,860,861,862,865]:
-        for window in range(190,206): #[190, 195, 200, 205]: #[150,199,200]:
+    for start in [700,800]: #[400,800,860,861,862,865]:
+        for window in [150,199,200]:  #range(190,206): #[190, 195, 200, 205]: 
             t0 = 10*start  # time steps = 0.1
             end = start + window
             data_window = data[ t0 : t0+window  ]
